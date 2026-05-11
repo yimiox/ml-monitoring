@@ -1,6 +1,4 @@
-version: "3.9"
-
-networks:
+﻿networks:
   monitoring:
     driver: bridge
 
@@ -11,7 +9,6 @@ volumes:
 
 services:
 
-  # ── MLflow tracking server ──────────────────────────────────────────────
   mlflow:
     build:
       context: ./mlflow
@@ -27,20 +24,14 @@ services:
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     networks:
       - monitoring
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # ── Evidently monitoring service ────────────────────────────────────────
   monitor:
     build:
       context: ./monitoring
       dockerfile: Dockerfile
     container_name: monitor
     ports:
-      - "8000:8000"   # Prometheus /metrics endpoint
+      - "8000:8000"
     volumes:
       - ./monitoring:/app
       - ./data:/data
@@ -50,16 +41,14 @@ services:
       - REFERENCE_DATA_PATH=/data/reference/reference.csv
       - INCOMING_DATA_PATH=/data/incoming
       - METRICS_PORT=8000
-      - DRIFT_CHECK_INTERVAL=30       # seconds between drift checks
-      - DRIFT_THRESHOLD=0.15          # PSI score that triggers alert
+      - DRIFT_CHECK_INTERVAL=30
+      - DRIFT_THRESHOLD=0.15
     depends_on:
-      mlflow:
-        condition: service_healthy
+      - mlflow
     networks:
       - monitoring
     restart: unless-stopped
 
-  # ── Prometheus ──────────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: prometheus
@@ -78,7 +67,6 @@ services:
       - monitoring
     restart: unless-stopped
 
-  # ── Grafana ─────────────────────────────────────────────────────────────
   grafana:
     image: grafana/grafana:10.4.0
     container_name: grafana
@@ -92,7 +80,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_ALERTING_ENABLED=true
       - GF_UNIFIED_ALERTING_ENABLED=true
     depends_on:
       - prometheus
@@ -100,7 +87,6 @@ services:
       - monitoring
     restart: unless-stopped
 
-  # ── Auto-retrainer ──────────────────────────────────────────────────────
   retrainer:
     build:
       context: ./monitoring
@@ -115,7 +101,7 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PROMETHEUS_URL=http://prometheus:9090
       - DRIFT_THRESHOLD=0.15
-      - RETRAIN_COOLDOWN=3600         # seconds before retraining again
+      - RETRAIN_COOLDOWN=3600
     depends_on:
       - prometheus
       - mlflow

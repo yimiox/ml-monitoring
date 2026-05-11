@@ -1,0 +1,23 @@
+{
+  "features": [
+    "sqft",
+    "bedrooms",
+    "bathrooms",
+    "age_years",
+    "garage",
+    "neighbourhood",
+    "distance_cbd"
+  ],
+  "cat_features": [
+    "neighbourhood"
+  ],
+  "num_features": [
+    "sqft",
+    "bedrooms",
+    "bathrooms",
+    "age_years",
+    "garage",
+    "distance_cbd"
+  ],
+  "target": "price_usd"
+}
