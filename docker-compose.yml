@@ -36,10 +36,12 @@ services:
       - ./monitoring:/app
       - ./data:/data
       - ./models:/models
+      - ./scripts:/app/scripts
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - REFERENCE_DATA_PATH=/data/reference/reference.csv
       - INCOMING_DATA_PATH=/data/incoming
+      - MODEL_PATH=/models/model.pkl
       - METRICS_PORT=8000
       - DRIFT_CHECK_INTERVAL=30
       - DRIFT_THRESHOLD=0.15
@@ -97,6 +99,7 @@ services:
       - ./monitoring:/app
       - ./data:/data
       - ./models:/models
+      - ./scripts:/app/scripts
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PROMETHEUS_URL=http://prometheus:9090
