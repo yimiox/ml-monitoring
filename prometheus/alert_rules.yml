@@ -1,0 +1,72 @@
+groups:
+  - name: ml_drift_alerts
+    interval: 30s
+    rules:
+
+      # ── Dataset-level drift ──────────────────────────────────────────────
+      - alert: DatasetDriftDetected
+        expr: ml_dataset_drift_detected == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dataset drift detected"
+          description: "{{ $value | humanizePercentage }} of features have drifted beyond threshold."
+
+      - alert: DatasetDriftScoreHigh
+        expr: ml_dataset_drift_score > 0.3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical dataset drift — {{ $value | humanizePercentage }} of features drifted"
+          description: "Immediate retraining recommended."
+
+      # ── Per-feature drift ────────────────────────────────────────────────
+      - alert: FeatureDrifted
+        expr: ml_feature_drift_detected == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature '{{ $labels.feature }}' has drifted"
+          description: "Drift score: {{ $value }}. Check data pipeline for feature '{{ $labels.feature }}'."
+
+      # ── Prediction drift ─────────────────────────────────────────────────
+      - alert: PredictionDriftHigh
+        expr: ml_prediction_drift_score > 0.15
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prediction distribution drift detected"
+          description: "Prediction drift score {{ $value }} — possible concept drift."
+
+      # ── Model quality ────────────────────────────────────────────────────
+      - alert: ModelR2Degraded
+        expr: ml_model_r2 < 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Model R² dropped to {{ $value | humanize }}"
+          description: "R² below 0.9 — baseline was 0.966. Retraining triggered."
+
+      - alert: ModelMAPEHigh
+        expr: ml_model_mape > 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model MAPE is {{ $value }}% (baseline 4.4%)"
+          description: "Error rate has more than tripled from baseline."
+
+      # ── Monitor health ───────────────────────────────────────────────────
+      - alert: MonitorDown
+        expr: up{job="ml_monitor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ML monitoring service is down"
+          description: "No metrics being scraped from the monitor container."

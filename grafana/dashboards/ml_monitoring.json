@@ -1,0 +1,303 @@
+{
+  "uid": "ml-monitoring-main",
+  "title": "ML Model Monitoring",
+  "tags": ["ml", "drift", "monitoring"],
+  "timezone": "browser",
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+
+    {
+      "id": 1,
+      "title": "Dataset Drift Score",
+      "description": "Share of features that have drifted (0 = none, 1 = all). Alert fires above 0.15.",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": 0    },
+              { "color": "yellow", "value": 0.1  },
+              { "color": "red",    "value": 0.15 }
+            ]
+          },
+          "unit": "percentunit",
+          "mappings": []
+        }
+      },
+      "targets": [{
+        "expr": "ml_dataset_drift_score",
+        "legendFormat": "Drift Score",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true }
+    },
+
+    {
+      "id": 2,
+      "title": "Drift Detected",
+      "description": "1 = drift detected across the dataset, 0 = clean",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 4, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "CLEAN",   "color": "green" } } },
+            { "type": "value", "options": { "1": { "text": "DRIFTED", "color": "red"   } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red",   "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "ml_dataset_drift_detected",
+        "legendFormat": "Status",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "value" }
+    },
+
+    {
+      "id": 3,
+      "title": "Total Drift Alerts",
+      "description": "Cumulative count of times drift threshold was breached",
+      "type": "stat",
+      "gridPos": { "x": 10, "y": 0, "w": 4, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red",   "value": 1 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "targets": [{
+        "expr": "ml_drift_alerts_total",
+        "legendFormat": "Alerts",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    },
+
+    {
+      "id": 4,
+      "title": "Checks Run",
+      "description": "Total monitoring checks executed",
+      "type": "stat",
+      "gridPos": { "x": 14, "y": 0, "w": 4, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": 0 }] },
+          "unit": "short"
+        }
+      },
+      "targets": [{
+        "expr": "ml_monitor_checks_total",
+        "legendFormat": "Checks",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    },
+
+    {
+      "id": 5,
+      "title": "Per-Feature Drift Score",
+      "description": "KS statistic per feature over time. Spikes indicate distribution shift.",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0    },
+              { "color": "red",   "value": 0.15 }
+            ]
+          },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [{
+        "expr": "ml_feature_drift_score",
+        "legendFormat": "{{feature}}",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }
+      }
+    },
+
+    {
+      "id": 6,
+      "title": "Features Currently Drifted",
+      "description": "1 = this feature's distribution has shifted beyond threshold",
+      "type": "table",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "OK",      "color": "green" } } },
+            { "type": "value", "options": { "1": { "text": "DRIFTED", "color": "red"   } } }
+          ]
+        }
+      },
+      "targets": [{
+        "expr": "ml_feature_drift_detected",
+        "legendFormat": "{{feature}}",
+        "instant": true,
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "sortBy": [{ "displayName": "Value", "desc": true }] },
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "rows" } }]
+    },
+
+    {
+      "id": 7,
+      "title": "Prediction Drift Score",
+      "description": "KS statistic on model output distribution. High value = concept drift.",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short", "min": 0,
+          "custom": { "lineWidth": 2, "fillOpacity": 15 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0    },
+              { "color": "red",   "value": 0.15 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "ml_prediction_drift_score",
+        "legendFormat": "Prediction Drift",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "tooltip": { "mode": "single" } }
+    },
+
+    {
+      "id": 8,
+      "title": "Model Quality — MAE & RMSE",
+      "description": "Error metrics on current batch vs reference. Rising = model degradation.",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "ml_model_mae",
+          "legendFormat": "MAE",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "ml_model_rmse",
+          "legendFormat": "RMSE",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+
+    {
+      "id": 9,
+      "title": "R² Score",
+      "description": "Model accuracy on current batch. Below 0.9 = significant degradation.",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 21, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short", "min": 0, "max": 1,
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": 0   },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green",  "value": 0.95}
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "ml_model_r2",
+        "legendFormat": "R²",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }]
+    },
+
+    {
+      "id": 10,
+      "title": "MAPE (%)",
+      "description": "Mean Absolute Percentage Error. Baseline ~4.4%. Rising = degradation.",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 21, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0,
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": 0  },
+              { "color": "yellow", "value": 8  },
+              { "color": "red",    "value": 15 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "ml_model_mape",
+        "legendFormat": "MAPE",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }]
+    },
+
+    {
+      "id": 11,
+      "title": "Current Batch Size",
+      "description": "Number of rows in the latest incoming batch",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 21, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": 0 }] }
+        }
+      },
+      "targets": [{
+        "expr": "ml_current_batch_size",
+        "legendFormat": "Batch Size",
+        "datasource": { "type": "prometheus", "uid": "prometheus" }
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    }
+
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
