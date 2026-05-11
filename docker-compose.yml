@@ -1,0 +1,124 @@
+version: "3.9"
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  mlflow_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+
+  # ── MLflow tracking server ──────────────────────────────────────────────
+  mlflow:
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+      - ./models:/models
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Evidently monitoring service ────────────────────────────────────────
+  monitor:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+    container_name: monitor
+    ports:
+      - "8000:8000"   # Prometheus /metrics endpoint
+    volumes:
+      - ./monitoring:/app
+      - ./data:/data
+      - ./models:/models
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - REFERENCE_DATA_PATH=/data/reference/reference.csv
+      - INCOMING_DATA_PATH=/data/incoming
+      - METRICS_PORT=8000
+      - DRIFT_CHECK_INTERVAL=30       # seconds between drift checks
+      - DRIFT_THRESHOLD=0.15          # PSI score that triggers alert
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ── Prometheus ──────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - monitor
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ── Grafana ─────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ── Auto-retrainer ──────────────────────────────────────────────────────
+  retrainer:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+    container_name: retrainer
+    command: ["python", "retrainer.py"]
+    volumes:
+      - ./monitoring:/app
+      - ./data:/data
+      - ./models:/models
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PROMETHEUS_URL=http://prometheus:9090
+      - DRIFT_THRESHOLD=0.15
+      - RETRAIN_COOLDOWN=3600         # seconds before retraining again
+    depends_on:
+      - prometheus
+      - mlflow
+    networks:
+      - monitoring
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s       # Pull metrics every 15 seconds
+  evaluation_interval: 15s   # Evaluate alert rules every 15 seconds
+
+# ── Alert rules (wired to Grafana unified alerting) ─────────────────────
+rule_files:
+  - "alert_rules.yml"        # created in Phase 5
+
+# ── Scrape targets ───────────────────────────────────────────────────────
+scrape_configs:
+
+  # Evidently drift metrics (your custom exporter)
+  - job_name: "ml_monitor"
+    static_configs:
+      - targets: ["monitor:8000"]
+    metrics_path: /metrics
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

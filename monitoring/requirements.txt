@@ -1,0 +1,15 @@
+# ML & monitoring
+evidently==0.4.22
+mlflow==2.12.1
+scikit-learn==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+scipy==1.13.0
+
+# Prometheus metrics exporter
+prometheus-client==0.20.0
+
+# HTTP / utilities
+requests==2.31.0
+python-dotenv==1.0.1
+schedule==1.2.1
